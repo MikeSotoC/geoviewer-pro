@@ -43,15 +43,18 @@
       <input type="file" id="fi" accept=".dxf,.geojson,.json"/>
       <span class="di">📂</span>
       <div class="dm">Arrastra tu archivo aquí</div>
-      <div class="ds"><b>.dxf</b> · <b>.geojson</b> · <b>.json</b> — máx. 20 MB</div>
+      <div class="ds"><b>.dxf</b> · <b>.geojson</b> · <b>.json</b></div>
     </div>
     <div class="ibox"><b>DXF:</b> LINE, LWPOLYLINE, POLYLINE, CIRCLE, ARC, POINT + <span class="ok">TEXT</span>.<br/><b>DWG:</b> Desde ZWCAD: <em>Guardar como → DXF R2013</em>.</div>
     <div id="utmw">⚠ Coordenadas UTM — ve a ⚙ Config y aplica reproyección.</div>
+    
     <div class="stit">📁 Capas <span class="badge" id="lcb">0</span></div>
     <div id="llist"><div id="empty" style="padding:14px 12px;text-align:center;font-size:10px;color:var(--t3);line-height:1.7">Sin capas.<br/>Arrastra un DXF o GeoJSON.</div></div>
+    
     <div class="stit">🎨 Estilo global</div>
     <div class="srow"><label>Opacidad</label><input type="range" min="10" max="100" value="85" id="gop" oninput="applyStyle()"><span class="sv" id="opv">85</span></div>
     <div class="srow"><label>Grosor</label><input type="range" min="1" max="8" value="2" id="gwt" oninput="applyStyle()"><span class="sv" id="wtv">2</span></div>
+    
     <div id="sacts">
       <button onclick="fitAll()">⤢ Fit</button>
       <button onclick="togAll(true)">👁 Show</button>
@@ -133,17 +136,18 @@
         <button class="hbtn" style="font-size:9px" onclick="reprojectAll()">▶ Aplicar</button>
       </div>
 
-      <!--<div class="stit" style="border:none;padding:6px 12px 2px">📐 Zona UTM coordenadas</div>
-      <div style="padding:0 8px 5px">
-        <select id="utm-disp" style="width:100%;background:var(--surf);border:1px solid var(--brd);color:var(--t1);border-radius:4px;padding:4px 6px;font-family:var(--mono);font-size:10px" onchange="utmDispZone=+this.value">
-          <option value="17">Zona 17</option><option value="18" selected>Zona 18</option><option value="19">Zona 19</option>
-        </select>
-      </div>
-		-->
-      <div class="stit" style="border:none;padding:6px 12px 2px">ℹ DWG</div>
+      <div class="stit" style="border:none;padding:6px 12px 2px">ℹ Información</div>
       <div class="ibox" style="margin-bottom:8px">
-        <b>DWG es propietario Autodesk</b> — sin spec pública. Librerías: ODA (comercial), LibreDWG (solo C), TeighaJS (comercial).<br/><br/>
-        <b>Desde ZWCAD 2026:</b> <em>Archivo → Guardar como → AutoCAD 2010 DXF</em>
+        <b>DWG es propietario Autodesk</b> — sin spec pública.<br/>
+        <b>Desde ZWCAD:</b> <em>Archivo → Guardar como → DXF 2013</em>
+      </div>
+      
+      <div class="stit" style="border:none;padding:6px 12px 2px">🛠 Acciones rápidas</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:0 8px 8px">
+        <button class="hbtn" style="font-size:9px" onclick="toggleCoordinates()">📍 Coordenadas</button>
+        <button class="hbtn" style="font-size:9px" onclick="toggleMiniMap()">🗺 Mini Mapa</button>
+        <button class="hbtn" style="font-size:9px" onclick="fitAll()">⤢ Ajustar Zoom</button>
+        <button class="hbtn" style="font-size:9px;color:#ef4444" onclick="clearAll()">🗑 Limpiar Todo</button>
       </div>
     </div>
   </div>
