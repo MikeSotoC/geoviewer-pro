@@ -5,7 +5,8 @@ const TILES = {
   osm:  { url:'https://tile.openstreetmap.de/{z}/{x}/{y}.png', attr:'© OpenStreetMap', max:19 },
   dark: { url:'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', attr:'© CARTO', max:20 },
   topo: { url:'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', attr:'© OpenTopoMap', max:17 },
-  sat:  { url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attr:'© Esri', max:19 }
+  // Google Satellite - Mejor calidad y zoom hasta nivel 20
+  sat:  { url:'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', attr:'© Google', max:20 }
 };
 
 /* ══════════════════════════════════════════════════════════════
@@ -55,9 +56,20 @@ map.zoomControl.setPosition('bottomleft');
 L.control.scale({ metric: true, imperial: false, position: 'bottomleft' }).addTo(map);
 
 let mainTile = L.tileLayer(TILES.osm.url, { attribution: TILES.osm.attr, maxZoom: TILES.osm.max }).addTo(map);
+let currentBaseKey = 'osm';
 
 function swMain(key) {
   const cfg = TILES[key]; if (!cfg) return;
+  currentBaseKey = key;
+  
+  // Configurar límite de zoom según tipo de capa
+  // Google Satellite soporta hasta zoom 20 (~50m o menos), sin bloqueo
+  if (key === 'sat') {
+    map.setMaxZoom(20); // Google Satellite permite mayor zoom con buena calidad
+  } else {
+    map.setMaxZoom(cfg.max);
+  }
+  
   map.removeLayer(mainTile);
   mainTile = L.tileLayer(cfg.url, { attribution: cfg.attr, maxZoom: cfg.max }).addTo(map);
   mainTile.bringToBack();
@@ -222,6 +234,13 @@ function togLayer(id) {
     if (ml.eachLayer) ml.eachLayer(l => { if(l.setStyle) l.setStyle({opacity: ly.visible ? 0.8 : 0, fillOpacity: ly.visible ? 0.18 : 0}); });
   });
   renderList();
+  // Forzar actualización visual del botón
+  setTimeout(() => {
+    const btn = document.querySelector(`button[onclick="togLayer('${id}')"]`);
+    if (btn) {
+      btn.classList.toggle('on', ly.visible);
+    }
+  }, 0);
 }
 
 function togAll(show) {
