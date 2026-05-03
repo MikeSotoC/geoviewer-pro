@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>GeoViewer Pro</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+<div id="app">
+
+<!-- HEADER -->
+<header id="hdr">
+  <div class="logo"><div class="lico">🌐</div><div class="ltx">Geo<span>Viewer</span> Pro</div></div>
+  <div class="sep"></div>
+  <button class="hbtn pri" onclick="document.getElementById('fi').click()">↑ Cargar DXF / GeoJSON</button>
+  <button class="hbtn" onclick="exportGeoJSON()">↓ Export</button>
+  <button class="hbtn" onclick="fitAll()">⤢ Fit</button>
+  <div class="hsp"></div>
+  <div id="utm-bar">
+    <div class="useg">Z<b id="uz">—</b></div>
+    <div class="useg">E <b id="ue">—</b></div>
+    <div class="useg">N <b id="un">—</b></div>
+    <div class="useg">Zm <b id="uzm">—</b></div>
+  </div>
+  <button class="thbtn" id="thbtn" onclick="toggleTheme()">🌙</button>
+</header>
+
+<!-- SIDEBAR -->
+<aside id="side">
+  <div id="stabs">
+    <button class="stab on"  onclick="showTab('layers',this)">📁 Capas</button>
+    <button class="stab"     onclick="showTab('texts',this)">✏ Textos</button>
+    <button class="stab"     onclick="showTab('cfg',this)">⚙ Config</button>
+  </div>
+
+  <!-- TAB CAPAS -->
+  <div class="spanel on" id="tab-layers">
+    <div id="dz">
+      <input type="file" id="fi" accept=".dxf,.geojson,.json"/>
+      <span class="di">📂</span>
+      <div class="dm">Arrastra tu archivo aquí</div>
+      <div class="ds"><b>.dxf</b> · <b>.geojson</b> · <b>.json</b> — máx. 20 MB</div>
+    </div>
+    <div class="ibox"><b>DXF:</b> LINE, LWPOLYLINE, POLYLINE, CIRCLE, ARC, POINT + <span class="ok">TEXT</span>.<br/><b>DWG:</b> Desde ZWCAD: <em>Guardar como → DXF R2013</em>.</div>
+    <div id="utmw">⚠ Coordenadas UTM — ve a ⚙ Config y aplica reproyección.</div>
+    <div class="stit">📁 Capas <span class="badge" id="lcb">0</span></div>
+    <div id="llist"><div id="empty" style="padding:14px 12px;text-align:center;font-size:10px;color:var(--t3);line-height:1.7">Sin capas.<br/>Arrastra un DXF o GeoJSON.</div></div>
+    <div class="stit">🎨 Estilo global</div>
+    <div class="srow"><label>Opacidad</label><input type="range" min="10" max="100" value="85" id="gop" oninput="applyStyle()"><span class="sv" id="opv">85</span></div>
+    <div class="srow"><label>Grosor</label><input type="range" min="1" max="8" value="2" id="gwt" oninput="applyStyle()"><span class="sv" id="wtv">2</span></div>
+    <div id="sacts">
+      <button onclick="fitAll()">⤢ Fit</button>
+      <button onclick="togAll(true)">👁 Show</button>
+      <button onclick="togAll(false)">🚫 Hide</button>
+      <button class="dng" onclick="clearAll()">🗑 Clear</button>
+    </div>
+  </div>
+
+  <!-- TAB TEXTOS -->
+  <div class="spanel" id="tab-texts">
+    <div id="txt-scroll">
+      <div class="tf"><label>Contenido</label><textarea id="txt-content" rows="2" placeholder="Escribe aquí..." oninput="updatePreview()"></textarea></div>
+      <div class="tg2">
+        <div><label>Fuente</label>
+          <select id="txt-font" onchange="updatePreview()">
+            <option value="'Space Mono',monospace">Space Mono</option>
+            <option value="Arial,sans-serif">Arial</option>
+            <option value="'Times New Roman',serif">Times New Roman</option>
+            <option value="'Courier New',monospace">Courier New</option>
+            <option value="Georgia,serif">Georgia</option>
+            <option value="Verdana,sans-serif">Verdana</option>
+          </select>
+        </div>
+        <div><label>Tamaño (px)</label><input type="number" id="txt-size" value="14" min="8" max="72" oninput="updatePreview()"></div>
+      </div>
+      <div class="tg3">
+        <div><label>Color texto</label><input type="color" id="txt-color" value="#ffffff" onchange="updatePreview()"></div>
+        <div><label>Color borde</label><input type="color" id="txt-sc" value="#000000" onchange="updatePreview()"></div>
+        <div><label>Borde (px)</label><input type="number" id="txt-sw" value="2" min="0" max="10" oninput="updatePreview()"></div>
+      </div>
+      <div class="tg2">
+        <div><label>Peso</label><select id="txt-bold" onchange="updatePreview()"><option value="normal">Normal</option><option value="bold">Negrita</option></select></div>
+        <div><label>Estilo</label><select id="txt-ital" onchange="updatePreview()"><option value="normal">Normal</option><option value="italic">Italic</option></select></div>
+      </div>
+      <div style="margin:4px 8px 2px;font-size:9px;color:var(--t3)">Vista previa (fondo transparente):</div>
+      <div id="txt-prev"><span id="txt-pi">Texto de prueba</span></div>
+      <button id="txt-placebtn" onclick="togglePlace()">📌 Clic en el mapa para colocar</button>
+      <div class="stit" style="flex-shrink:0">📋 Colocados <span class="badge" id="txt-count">0</span></div>
+    </div>
+    <div id="txt-list2"></div>
+  </div>
+
+  <!-- TAB CONFIG -->
+  <div class="spanel" id="tab-cfg">
+    <div id="cfg-scroll">
+
+      <div class="stit" style="border:none;padding:6px 12px 2px">🗺 Basemap principal</div>
+      <!-- data-group identifica este grupo para setGroupActive() -->
+      <div class="opt-row" data-group="main-bm">
+        <button class="opt-btn"    data-val="sat"   onclick="swMain('sat')">Sat</button>
+        <button class="opt-btn on" data-val="osm"  onclick="swMain('osm')">OSM</button>
+        <button class="opt-btn"    data-val="dark"  onclick="swMain('dark')">Dark</button>
+        <button class="opt-btn"    data-val="topo"  onclick="swMain('topo')">Topo</button>
+      </div>
+
+      <div class="stit" style="border:none;padding:6px 12px 2px">🔭 Basemap mini mapa</div>
+      <div class="opt-row" data-group="mini-bm">
+        <button class="opt-btn"    data-val="sat"   onclick="swMini('sat')">Sat</button>
+        <button class="opt-btn"    data-val="osm"   onclick="swMini('osm')">OSM</button>
+        <button class="opt-btn on" data-val="dark"  onclick="swMini('dark')">Dark</button>
+        <button class="opt-btn"    data-val="topo"  onclick="swMini('topo')">Topo</button>
+      </div>
+
+      <div class="stit" style="border:none;padding:6px 12px 2px">🌓 Tema</div>
+      <div class="opt-row" data-group="theme">
+        <button class="opt-btn on" data-val="dark"  onclick="setTheme('dark')">🌙 Oscuro</button>
+        <button class="opt-btn"    data-val="light" onclick="setTheme('light')">☀ Claro</button>
+      </div>
+
+      <div class="stit" style="border:none;padding:6px 12px 2px">🔄 Reproyección UTM→WGS84</div>
+      <div style="display:flex;gap:5px;padding:0 8px 4px;align-items:center">
+        <select id="utmz" style="flex:1;background:var(--surf);border:1px solid var(--brd);color:var(--t1);border-radius:4px;padding:3px 5px;font-family:var(--mono);font-size:10px">
+          <option value="none">— Sin reproyectar —</option>
+          <option value="17S">UTM 17S (Perú norte)</option>
+          <option value="18S" selected>UTM 18S (Perú central/sur ✓)</option>
+          <option value="19S">UTM 19S (Perú extremo sur)</option>
+          <option value="17N">UTM 17N</option><option value="18N">UTM 18N</option><option value="19N">UTM 19N</option>
+        </select>
+        <button class="hbtn" style="font-size:9px" onclick="reprojectAll()">▶ Aplicar</button>
+      </div>
+
+      <!--<div class="stit" style="border:none;padding:6px 12px 2px">📐 Zona UTM coordenadas</div>
+      <div style="padding:0 8px 5px">
+        <select id="utm-disp" style="width:100%;background:var(--surf);border:1px solid var(--brd);color:var(--t1);border-radius:4px;padding:4px 6px;font-family:var(--mono);font-size:10px" onchange="utmDispZone=+this.value">
+          <option value="17">Zona 17</option><option value="18" selected>Zona 18</option><option value="19">Zona 19</option>
+        </select>
+      </div>
+		-->
+      <div class="stit" style="border:none;padding:6px 12px 2px">ℹ DWG</div>
+      <div class="ibox" style="margin-bottom:8px">
+        <b>DWG es propietario Autodesk</b> — sin spec pública. Librerías: ODA (comercial), LibreDWG (solo C), TeighaJS (comercial).<br/><br/>
+        <b>Desde ZWCAD 2026:</b> <em>Archivo → Guardar como → AutoCAD 2010 DXF</em>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAP -->
+<div id="mc">
+  <div id="map"></div>
+  <div id="mm"><div id="mmi"></div><div id="mm-vp"></div><div class="mm-lbl">OVERVIEW</div></div>
+  <div id="mtb">
+    <button class="mtbtn" onclick="myLoc()">📍</button>
+    <button class="mtbtn" onclick="fitAll()">⤢</button>
+    <button class="mtbtn" onclick="exportGeoJSON()">💾</button>
+  </div>
+</div>
+
+<!-- STATUS -->
+<div id="sb">
+  <div style="display:flex;align-items:center;gap:5px"><div class="sdot" id="sdot"></div><span id="smsg">Listo</span></div>
+  <div>Entidades: <span id="sfe" style="color:var(--acc)">0</span></div>
+  <div style="margin-left:auto">Zoom: <span id="sbz" style="color:var(--acc)">—</span> &nbsp;|&nbsp; CRS: <span style="color:var(--t2)">EPSG:4326</span></div>
+</div>
+</div>
+
+<div id="lov"><div class="lring"></div><div id="ltxt" style="font-size:12px;color:var(--t2)">Procesando…</div><div id="lsub" style="font-size:10px;color:var(--t3)">Por favor espera</div></div>
+<div id="tc"></div>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
