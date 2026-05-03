@@ -9,6 +9,16 @@ const TILES = {
   sat:  { url:'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', attr:'© Google', max:20 }
 };
 
+/* ── GeoTIFF SUPPORT ── */
+// Usamos geotiff.js desde CDN para leer archivos GeoTIFF
+let GeoTIFF_lib = null;
+async function loadGeoTIFFLib() {
+  if (!GeoTIFF_lib) {
+    GeoTIFF_lib = await import('https://cdn.jsdelivr.net/npm/geotiff@2.1.3/+esm');
+  }
+  return GeoTIFF_lib;
+}
+
 /* ══════════════════════════════════════════════════════════════
    PATRÓN ÚNICO PARA GRUPOS DE BOTONES OPT
    ─────────────────────────────────────────────────────────────
@@ -287,6 +297,13 @@ document.getElementById('mc').addEventListener('drop', e=>{e.preventDefault();if
 function handleFile(file) {
   const ext = file.name.split('.').pop().toLowerCase();
   if (ext==='dwg') { showToast('DWG: Exporta como DXF R2013','err'); setStatus('DWG no soportado','err'); return; }
+  
+  // Soporte para GeoTIFF
+  if (ext==='tif' || ext==='tiff') {
+    processGeoTIFF(file);
+    return;
+  }
+  
   setStatus('Leyendo: '+file.name,'warn');
   showLoader('Procesando: '+file.name,'Analizando…');
   const r=new FileReader();
@@ -299,6 +316,110 @@ function handleFile(file) {
   };
   r.onerror = ()=>{hideLoader();showToast('No se pudo leer el archivo','err')};
   r.readAsText(file,'utf-8');
+}
+
+/* ── GeoTIFF ── */
+async function processGeoTIFF(file) {
+  try {
+    showLoader('Cargando GeoTIFF...', 'Procesando imagen...');
+    updateLoader('Leyendo archivo...');
+    
+    // Cargar librería geotiff.js
+    const GeoTIFF = await loadGeoTIFFLib();
+    
+    // Leer el archivo como ArrayBuffer
+    const arrayBuffer = await file.arrayBuffer();
+    
+    // Parsear el GeoTIFF
+    updateLoader('Analizando metadatos...');
+    const tiff = await GeoTIFF.fromArrayBuffer(arrayBuffer);
+    const image = await tiff.getImage();
+    const fileDirectory = image.getFileDirectory();
+    
+    // Obtener información de la imagen
+    const width = fileDirectory.ImageWidth;
+    const height = fileDirectory.ImageLength;
+    
+    // Obtener transformación geográfica (GeoKeyDirectoryTag o ModelTransformation)
+    let bbox = null;
+    try {
+      const geoKeys = image.getGeoKeys();
+      if (geoKeys && geoKeys.GeoGTParams) {
+        // Usar parámetros de transformación si están disponibles
+        const tiePoints = image.getTiePoints();
+        const resolution = image.getResolution();
+        
+        if (tiePoints && tiePoints.length > 0) {
+          // Calcular bbox a partir de tie points
+          const [i, j, k, x, y] = tiePoints[0];
+          const [resX, resY] = resolution;
+          
+          const minX = x - i * resX;
+          const maxY = y - j * resY;
+          const maxX = minX + width * resX;
+          const minY = maxY - height * resY;
+          
+          bbox = [minX, minY, maxX, maxY];
+        }
+      }
+    } catch (e) {
+      console.warn('No se pudo leer la información geográfica:', e);
+    }
+    
+    if (!bbox) {
+      hideLoader();
+      showToast('GeoTIFF sin información geográfica válida', 'err');
+      return;
+    }
+    
+    updateLoader('Creando capa de imagen...');
+    
+    // Crear URL para el blob
+    const url = URL.createObjectURL(new Blob([arrayBuffer], { type: 'image/tiff' }));
+    
+    // Para mostrar GeoTIFF en Leaflet, usamos ImageOverlay con los límites
+    // Nota: Los navegadores no renderizan TIFF directamente, necesitamos convertirlo
+    // Usaremos una aproximación creando un canvas o usando un servicio externo
+    
+    // Opción simplificada: Mostrar advertencia y usar solo los límites
+    const bounds = [[bbox[1], bbox[0]], [bbox[3], bbox[2]]];
+    
+    // Crear un rectángulo para mostrar los límites del GeoTIFF
+    const rectangle = L.rectangle(bounds, {
+      color: '#ff6b6b',
+      weight: 2,
+      dashArray: '10, 10',
+      fillOpacity: 0.1
+    });
+    
+    const group = L.featureGroup([rectangle]);
+    
+    // Agregar popup con información
+    rectangle.bindPopup(`
+      <b>${file.name}</b><br/>
+      Dimensiones: ${width} x ${height} píxeles<br/>
+      Límites:<br/>
+      Min X: ${bbox[0].toFixed(4)}<br/>
+      Min Y: ${bbox[1].toFixed(4)}<br/>
+      Max X: ${bbox[2].toFixed(4)}<br/>
+      Max Y: ${bbox[3].toFixed(4)}<br/>
+      <small>Nota: Visualización completa requiere servidor de tiles</small>
+    `);
+    
+    const name = file.name.replace(/\.[^.]+$/, '');
+    registerLayer(name, group, 1, { type: 'GeoTIFF_BBOX', file: file });
+    
+    hideLoader();
+    setTimeout(fitAll, 200);
+    showToast(`✓ GeoTIFF cargado: ${width}x${height}`, 'ok');
+    setStatus(`"${name}" — GeoTIFF`, 'ok');
+    
+  } catch (err) {
+    hideLoader();
+    showToast('Error GeoTIFF: ' + err.message, 'err');
+    setStatus('Error: ' + err.message, 'err');
+    console.error(err);
+  }
 }
 
 /* ── GEOJSON ── */
