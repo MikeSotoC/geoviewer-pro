@@ -225,15 +225,27 @@ function updateBadge() { document.getElementById('lcb').textContent = registry.l
 
 function togLayer(id) {
   const ly = registry.find(l => l.id === id); if (!ly) return;
+  
+  // 1. Cambiar estado lógico inmediatamente
   ly.visible = !ly.visible;
-  if (ly.visible) { map.addLayer(ly.group); userTextGroup.bringToFront(); }
-  else { map.removeLayer(ly.group); }
+  
+  // 2. Actualizar mapa
+  if (ly.visible) { 
+    map.addLayer(ly.group); 
+    userTextGroup.bringToFront(); 
+  } else { 
+    map.removeLayer(ly.group); 
+  }
+  
+  // 3. Actualizar mini-mapa
   miniData.eachLayer(ml => {
     if (ml._rid !== id) return;
-    const op = ly.visible ? 1 : 0;
-    if (ml.eachLayer) ml.eachLayer(l => { if(l.setStyle) l.setStyle({opacity: ly.visible ? 0.8 : 0, fillOpacity: ly.visible ? 0.18 : 0}); });
+    if (ml.eachLayer) ml.eachLayer(l => { 
+      if(l.setStyle) l.setStyle({opacity: ly.visible ? 0.8 : 0, fillOpacity: ly.visible ? 0.18 : 0}); 
+    });
   });
-  // Re-renderizar la lista para actualizar el estado visual del botón correctamente
+  
+  // 4. FORZAR re-renderizado completo de la lista para actualizar el icono del botón
   renderList();
 }
 
@@ -734,22 +746,24 @@ map.on('click', e => {
   const label=txt.slice(0,24)+(txt.length>24?'…':'');
   textMarkers.push({id,marker,label});
   
-  // Evento: inicio de arrastre
-  marker.on('dragstart', function() {
+  // Evento: inicio de arrastre - DETENER PROPAGACIÓN
+  marker.on('dragstart', function(e) {
     map.getContainer().style.cursor = 'grabbing';
+    if (e.originalEvent) e.originalEvent.stopPropagation();
   });
   
   // Evento: fin de arrastre - actualizar posición
   marker.on('dragend', function(e) {
     map.getContainer().style.cursor = '';
+    if (e.originalEvent) e.originalEvent.stopPropagation();
     renderTxtList();
     showToast('✏ Texto movido','inf');
   });
   
-  // Evento: click en marcador existente para editar
+  // Evento: click en marcador existente para editar - DETENER PROPAGACIÓN
   marker.on('click', function(e) {
     if (placing) return; // no editar mientras se coloca otro
-    e.originalEvent.stopPropagation();
+    e.originalEvent.stopPropagation(); // Evitar que el click se propague al mapa o capas DXF
     openTextEdit(id);
   });
   
