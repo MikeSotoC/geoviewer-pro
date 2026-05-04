@@ -303,17 +303,45 @@ function exportMap(format = 'png') {
     el.style.display = 'none';
   });
   
-  // Esperar a que el DOM se actualice
+  // Guardar estilos originales del contenedor para evitar desplazamiento
+  const originalContainerStyle = {
+    position: mapContainer.style.position,
+    transform: mapContainer.style.transform,
+    left: mapContainer.style.left,
+    top: mapContainer.style.top
+  };
+  
+  // Forzar posición relativa temporalmente para evitar desplazamiento en la captura
+  mapContainer.style.position = 'relative';
+  mapContainer.style.transform = 'none';
+  mapContainer.style.left = '0';
+  mapContainer.style.top = '0';
+  
+  // Esperar a que el DOM se actualice y renderizar tiles
   setTimeout(() => {
     html2canvas(mapContainer, {
       useCORS: true,
       allowTaint: true,
       backgroundColor: curTheme === 'dark' ? '#1a1a1a' : '#ffffff',
-      width: mapContainer.offsetWidth,
-      height: mapContainer.offsetHeight,
+      scale: 2, // Doble resolución para mejor calidad
+      x: 0,
+      y: 0,
+      scrollX: 0,
+      scrollY: 0,
       windowWidth: mapContainer.offsetWidth,
-      windowHeight: mapContainer.offsetHeight
+      windowHeight: mapContainer.offsetHeight,
+      logging: false,
+      ignoreElements: (el) => {
+        // Ignorar elementos con clase 'leaflet-control-zoom' si se desea limpiar más
+        return false; 
+      }
     }).then(canvas => {
+      // Restaurar estilos originales del contenedor
+      mapContainer.style.position = originalContainerStyle.position;
+      mapContainer.style.transform = originalContainerStyle.transform;
+      mapContainer.style.left = originalContainerStyle.left;
+      mapContainer.style.top = originalContainerStyle.top;
+      
       // Restaurar controles
       originalStyles.forEach(({ el, display }) => {
         el.style.display = display;
@@ -324,14 +352,31 @@ function exportMap(format = 'png') {
         mm.style.display = 'none';
       }
       
-      // Crear descarga
-      const link = document.createElement('a');
-      link.download = `mapa_${Date.now()}.${format}`;
-      link.href = canvas.toDataURL(`image/${format}`, 0.95);
-      link.click();
+      // Crear descarga usando Blob para mejor compatibilidad
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          showToast('Error al generar la imagen', 'err');
+          return;
+        }
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.download = `mapa_${Date.now()}.${format}`;
+        link.href = url;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        showToast(`✓ Mapa exportado como ${format.toUpperCase()}`, 'ok');
+      }, `image/${format}`, 0.95); // Calidad 0.95 para JPG
       
-      showToast(`✓ Mapa exportado como ${format.toUpperCase()}`, 'ok');
     }).catch(err => {
+      // Restaurar estilos originales del contenedor en caso de error
+      mapContainer.style.position = originalContainerStyle.position;
+      mapContainer.style.transform = originalContainerStyle.transform;
+      mapContainer.style.left = originalContainerStyle.left;
+      mapContainer.style.top = originalContainerStyle.top;
+      
       // Restaurar controles en caso de error
       originalStyles.forEach(({ el, display }) => {
         el.style.display = display;
@@ -342,9 +387,10 @@ function exportMap(format = 'png') {
         mm.style.display = 'none';
       }
       
+      console.error('Export error:', err);
       showToast('Error al exportar: ' + err.message, 'err');
     });
-  }, 150);
+  }, 500); // Aumentado a 500ms para asegurar renderizado completo de tiles
 }
 
 // Cargar html2canvas dinámicamente
