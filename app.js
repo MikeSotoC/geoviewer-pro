@@ -233,14 +233,8 @@ function togLayer(id) {
     const op = ly.visible ? 1 : 0;
     if (ml.eachLayer) ml.eachLayer(l => { if(l.setStyle) l.setStyle({opacity: ly.visible ? 0.8 : 0, fillOpacity: ly.visible ? 0.18 : 0}); });
   });
+  // Re-renderizar la lista para actualizar el estado visual del botón correctamente
   renderList();
-  // Forzar actualización visual del botón
-  setTimeout(() => {
-    const btn = document.querySelector(`button[onclick="togLayer('${id}')"]`);
-    if (btn) {
-      btn.classList.toggle('on', ly.visible);
-    }
-  }, 0);
 }
 
 function togAll(show) {
