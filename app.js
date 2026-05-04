@@ -303,6 +303,13 @@ function exportMap(format = 'png') {
     el.style.display = 'none';
   });
   
+  // Guardar posición actual del scroll para restaurar después
+  const scrollY = window.scrollY;
+  const scrollX = window.scrollX;
+  
+  // CRÍTICO: Forzar scroll a (0,0) para evitar desplazamiento en html2canvas
+  window.scrollTo(0, 0);
+  
   // Guardar estilos originales del contenedor para evitar desplazamiento
   const originalContainerStyle = {
     position: mapContainer.style.position,
@@ -336,6 +343,9 @@ function exportMap(format = 'png') {
         return false; 
       }
     }).then(canvas => {
+      // Restaurar posición del scroll inmediatamente
+      window.scrollTo(scrollX, scrollY);
+      
       // Restaurar estilos originales del contenedor
       mapContainer.style.position = originalContainerStyle.position;
       mapContainer.style.transform = originalContainerStyle.transform;
@@ -371,6 +381,9 @@ function exportMap(format = 'png') {
       }, `image/${format}`, 0.95); // Calidad 0.95 para JPG
       
     }).catch(err => {
+      // Restaurar posición del scroll en caso de error
+      window.scrollTo(scrollX, scrollY);
+      
       // Restaurar estilos originales del contenedor en caso de error
       mapContainer.style.position = originalContainerStyle.position;
       mapContainer.style.transform = originalContainerStyle.transform;
