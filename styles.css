@@ -61,6 +61,18 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 .ibox .ok{color:var(--grn)}
 #utmw{display:none;margin:4px 8px;padding:5px 8px;background:rgba(240,156,61,.07);border:1px solid var(--org);border-radius:4px;font-size:10px;color:var(--org);line-height:1.5}
 
+/* SECCIONES TAB CAPAS */
+.imp-section{flex-shrink:0}
+.lyr-section{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.sty-section{flex-shrink:0}
+.exp-section{flex-shrink:0;padding:8px 0}
+
+/* EXPORTAR GRID */
+.exp-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:0 8px 4px}
+.exp-btn{padding:8px 6px;border-radius:5px;border:1px solid var(--brd);background:var(--surf);color:var(--t2);cursor:pointer;font-family:var(--mono);font-size:10px;font-weight:600;transition:all .15s}
+.exp-btn:hover{background:var(--hov);color:var(--t1);border-color:var(--acc)}
+.exp-note{padding:0 8px;font-size:9px;color:var(--t3);text-align:center;line-height:1.4}
+
 /* layer list */
 #llist{flex:1;overflow-y:auto;padding:2px 0;min-height:0}
 #llist::-webkit-scrollbar{width:3px}

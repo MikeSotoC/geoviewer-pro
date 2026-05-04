@@ -39,27 +39,47 @@
 
   <!-- TAB CAPAS -->
   <div class="spanel on" id="tab-layers">
-    <div id="dz">
-      <input type="file" id="fi" accept=".dxf,.geojson,.json"/>
-      <span class="di">📂</span>
-      <div class="dm">Arrastra tu archivo aquí</div>
-      <div class="ds"><b>.dxf</b> · <b>.geojson</b> · <b>.json</b></div>
+    <!-- SECCIÓN IMPORTAR -->
+    <div class="imp-section">
+      <div id="dz">
+        <input type="file" id="fi" accept=".dxf,.geojson,.json"/>
+        <span class="di">📂</span>
+        <div class="dm">Arrastra tu archivo aquí</div>
+        <div class="ds"><b>.dxf</b> · <b>.geojson</b> · <b>.json</b></div>
+      </div>
+      <div class="ibox"><b>DXF:</b> LINE, LWPOLYLINE, CIRCLE, ARC, POINT + <span class="ok">TEXT</span>.<br/><b>DWG:</b> Desde ZWCAD: <em>Guardar como → DXF R2013</em>.</div>
+      <div id="utmw">⚠ Coordenadas UTM — ve a ⚙ Config y aplica reproyección.</div>
     </div>
-    <div class="ibox"><b>DXF:</b> LINE, LWPOLYLINE, POLYLINE, CIRCLE, ARC, POINT + <span class="ok">TEXT</span>.<br/><b>DWG:</b> Desde ZWCAD: <em>Guardar como → DXF R2013</em>.</div>
-    <div id="utmw">⚠ Coordenadas UTM — ve a ⚙ Config y aplica reproyección.</div>
     
-    <div class="stit">📁 Capas <span class="badge" id="lcb">0</span></div>
-    <div id="llist"><div id="empty" style="padding:14px 12px;text-align:center;font-size:10px;color:var(--t3);line-height:1.7">Sin capas.<br/>Arrastra un DXF o GeoJSON.</div></div>
+    <!-- SECCIÓN LISTA DE CAPAS -->
+    <div class="lyr-section">
+      <div class="stit">📁 Capas <span class="badge" id="lcb">0</span></div>
+      <div id="llist"><div id="empty" style="padding:14px 12px;text-align:center;font-size:10px;color:var(--t3);line-height:1.7">Sin capas.<br/>Arrastra un DXF o GeoJSON.</div></div>
+    </div>
     
-    <div class="stit">🎨 Estilo global</div>
-    <div class="srow"><label>Opacidad</label><input type="range" min="10" max="100" value="85" id="gop" oninput="applyStyle()"><span class="sv" id="opv">85</span></div>
-    <div class="srow"><label>Grosor</label><input type="range" min="1" max="8" value="2" id="gwt" oninput="applyStyle()"><span class="sv" id="wtv">2</span></div>
+    <!-- SECCIÓN ESTILOS -->
+    <div class="sty-section">
+      <div class="stit">🎨 Estilo global</div>
+      <div class="srow"><label>Opacidad</label><input type="range" min="10" max="100" value="85" id="gop" oninput="applyStyle()"><span class="sv" id="opv">85</span></div>
+      <div class="srow"><label>Grosor</label><input type="range" min="1" max="8" value="2" id="gwt" oninput="applyStyle()"><span class="sv" id="wtv">2</span></div>
+    </div>
     
+    <!-- SECCIÓN EXPORTAR -->
+    <div class="exp-section">
+      <div class="stit">📤 Exportar mapa</div>
+      <div class="exp-grid">
+        <button onclick="exportMap('png')" class="exp-btn">📷 PNG</button>
+        <button onclick="exportMap('jpg')" class="exp-btn">🖼 JPG</button>
+      </div>
+      <div class="exp-note">Incluye mini-mapa y todas las capas visibles</div>
+    </div>
+    
+    <!-- ACCIONES RÁPIDAS -->
     <div id="sacts">
-      <button onclick="fitAll()">⤢ Fit</button>
-      <button onclick="togAll(true)">👁 Show</button>
-      <button onclick="togAll(false)">🚫 Hide</button>
-      <button class="dng" onclick="clearAll()">🗑 Clear</button>
+      <button onclick="fitAll()">⤢ Ajustar</button>
+      <button onclick="togAll(true)">👁 Mostrar</button>
+      <button onclick="togAll(false)">🚫 Ocultar</button>
+      <button class="dng" onclick="clearAll()">🗑 Eliminar</button>
     </div>
   </div>
 

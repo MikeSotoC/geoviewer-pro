@@ -214,7 +214,7 @@ function renderList() {
   if (!registry.length) { el.innerHTML = '<div id="empty" style="padding:14px 12px;text-align:center;font-size:10px;color:var(--t3);line-height:1.7">Sin capas.<br/>Arrastra un DXF o GeoJSON.</div>'; return; }
   el.innerHTML = registry.map(ly => `
     <div class="litem">
-      <div class="lclr" style="background:${ly.color}"></div>
+      <input type="color" value="${ly.color}" onchange="changeLayerColor('${ly.id}',this.value)" style="width:24px;height:24px;border:none;cursor:pointer;background:transparent" title="Cambiar color">
       <div class="lnm" title="${ly.name}">${ly.name}</div>
       <div class="lcn">${ly.count}</div>
       <button class="ltog ${ly.visible?'on':''}" onclick="togLayer('${ly.id}')"></button>
@@ -257,6 +257,101 @@ function clearAll() {
   clearTexts();
   renderList(); updateBadge();
   showToast('Capas eliminadas','inf');
+}
+
+/* ── CAMBIAR COLOR DE CAPA ── */
+function changeLayerColor(id, newColor) {
+  const ly = registry.find(l => l.id === id);
+  if (!ly) return;
+  ly.color = newColor;
+  styleGroup(ly.group, newColor);
+  // Actualizar mini mapa
+  miniData.eachLayer(ml => {
+    if (ml._rid !== id) return;
+    if (ml.eachLayer) ml.eachLayer(l => {
+      if (l.setStyle) l.setStyle({
+        color: newColor,
+        fillColor: newColor,
+        opacity: ly.visible ? 0.8 : 0,
+        fillOpacity: ly.visible ? 0.18 : 0
+      });
+    });
+  });
+  showToast('Color actualizado', 'ok');
+}
+
+/* ── EXPORTAR MAPA A IMAGEN ── */
+function exportMap(format = 'png') {
+  const mapContainer = document.getElementById('mc');
+  const mm = document.getElementById('mm');
+  
+  // Mostrar notificación de carga
+  showToast('Generando imagen...', 'inf');
+  
+  // Forzar que el mini-mapa sea visible para la captura
+  const mmWasVisible = mm.style.display !== 'none';
+  if (!mmWasVisible) {
+    mm.style.display = 'block';
+  }
+  
+  // Ocultar solo controles superpuestos, NO el sidebar ni header
+  const controlsToHide = document.querySelectorAll('#mtb, #sb');
+  const originalStyles = [];
+  
+  controlsToHide.forEach(el => {
+    originalStyles.push({ el, display: el.style.display });
+    el.style.display = 'none';
+  });
+  
+  // Esperar a que el DOM se actualice
+  setTimeout(() => {
+    html2canvas(mapContainer, {
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: curTheme === 'dark' ? '#1a1a1a' : '#ffffff',
+      width: mapContainer.offsetWidth,
+      height: mapContainer.offsetHeight,
+      windowWidth: mapContainer.offsetWidth,
+      windowHeight: mapContainer.offsetHeight
+    }).then(canvas => {
+      // Restaurar controles
+      originalStyles.forEach(({ el, display }) => {
+        el.style.display = display;
+      });
+      
+      // Restaurar estado original del mini-mapa
+      if (!mmWasVisible) {
+        mm.style.display = 'none';
+      }
+      
+      // Crear descarga
+      const link = document.createElement('a');
+      link.download = `mapa_${Date.now()}.${format}`;
+      link.href = canvas.toDataURL(`image/${format}`, 0.95);
+      link.click();
+      
+      showToast(`✓ Mapa exportado como ${format.toUpperCase()}`, 'ok');
+    }).catch(err => {
+      // Restaurar controles en caso de error
+      originalStyles.forEach(({ el, display }) => {
+        el.style.display = display;
+      });
+      
+      // Restaurar estado original del mini-mapa
+      if (!mmWasVisible) {
+        mm.style.display = 'none';
+      }
+      
+      showToast('Error al exportar: ' + err.message, 'err');
+    });
+  }, 150);
+}
+
+// Cargar html2canvas dinámicamente
+if (typeof html2canvas === 'undefined') {
+  const script = document.createElement('script');
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+  document.head.appendChild(script);
 }
 
 /* ── FIT ALL ── */
