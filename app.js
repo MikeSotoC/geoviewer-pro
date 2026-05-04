@@ -9,16 +9,6 @@ const TILES = {
   sat:  { url:'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', attr:'© Google', max:20 }
 };
 
-/* ── GeoTIFF SUPPORT ── */
-// Usamos geotiff.js desde CDN para leer archivos GeoTIFF
-let GeoTIFF_lib = null;
-async function loadGeoTIFFLib() {
-  if (!GeoTIFF_lib) {
-    GeoTIFF_lib = await import('https://cdn.jsdelivr.net/npm/geotiff@2.1.3/+esm');
-  }
-  return GeoTIFF_lib;
-}
-
 /* ══════════════════════════════════════════════════════════════
    PATRÓN ÚNICO PARA GRUPOS DE BOTONES OPT
    ─────────────────────────────────────────────────────────────
@@ -224,7 +214,7 @@ function renderList() {
   if (!registry.length) { el.innerHTML = '<div id="empty" style="padding:14px 12px;text-align:center;font-size:10px;color:var(--t3);line-height:1.7">Sin capas.<br/>Arrastra un DXF o GeoJSON.</div>'; return; }
   el.innerHTML = registry.map(ly => `
     <div class="litem">
-      <div class="lclr" style="background:${ly.color}"></div>
+      <input type="color" value="${ly.color}" onchange="changeLayerColor('${ly.id}',this.value)" style="width:24px;height:24px;border:none;cursor:pointer;background:transparent" title="Cambiar color">
       <div class="lnm" title="${ly.name}">${ly.name}</div>
       <div class="lcn">${ly.count}</div>
       <button class="ltog ${ly.visible?'on':''}" onclick="togLayer('${ly.id}')"></button>
@@ -269,6 +259,101 @@ function clearAll() {
   showToast('Capas eliminadas','inf');
 }
 
+/* ── CAMBIAR COLOR DE CAPA ── */
+function changeLayerColor(id, newColor) {
+  const ly = registry.find(l => l.id === id);
+  if (!ly) return;
+  ly.color = newColor;
+  styleGroup(ly.group, newColor);
+  // Actualizar mini mapa
+  miniData.eachLayer(ml => {
+    if (ml._rid !== id) return;
+    if (ml.eachLayer) ml.eachLayer(l => {
+      if (l.setStyle) l.setStyle({
+        color: newColor,
+        fillColor: newColor,
+        opacity: ly.visible ? 0.8 : 0,
+        fillOpacity: ly.visible ? 0.18 : 0
+      });
+    });
+  });
+  showToast('Color actualizado', 'ok');
+}
+
+/* ── EXPORTAR MAPA A IMAGEN ── */
+function exportMap(format = 'png') {
+  const mapContainer = document.getElementById('mc');
+  const mm = document.getElementById('mm');
+  
+  // Mostrar notificación de carga
+  showToast('Generando imagen...', 'inf');
+  
+  // Forzar que el mini-mapa sea visible para la captura
+  const mmWasVisible = mm.style.display !== 'none';
+  if (!mmWasVisible) {
+    mm.style.display = 'block';
+  }
+  
+  // Ocultar solo controles superpuestos, NO el sidebar ni header
+  const controlsToHide = document.querySelectorAll('#mtb, #sb');
+  const originalStyles = [];
+  
+  controlsToHide.forEach(el => {
+    originalStyles.push({ el, display: el.style.display });
+    el.style.display = 'none';
+  });
+  
+  // Esperar a que el DOM se actualice
+  setTimeout(() => {
+    html2canvas(mapContainer, {
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: curTheme === 'dark' ? '#1a1a1a' : '#ffffff',
+      width: mapContainer.offsetWidth,
+      height: mapContainer.offsetHeight,
+      windowWidth: mapContainer.offsetWidth,
+      windowHeight: mapContainer.offsetHeight
+    }).then(canvas => {
+      // Restaurar controles
+      originalStyles.forEach(({ el, display }) => {
+        el.style.display = display;
+      });
+      
+      // Restaurar estado original del mini-mapa
+      if (!mmWasVisible) {
+        mm.style.display = 'none';
+      }
+      
+      // Crear descarga
+      const link = document.createElement('a');
+      link.download = `mapa_${Date.now()}.${format}`;
+      link.href = canvas.toDataURL(`image/${format}`, 0.95);
+      link.click();
+      
+      showToast(`✓ Mapa exportado como ${format.toUpperCase()}`, 'ok');
+    }).catch(err => {
+      // Restaurar controles en caso de error
+      originalStyles.forEach(({ el, display }) => {
+        el.style.display = display;
+      });
+      
+      // Restaurar estado original del mini-mapa
+      if (!mmWasVisible) {
+        mm.style.display = 'none';
+      }
+      
+      showToast('Error al exportar: ' + err.message, 'err');
+    });
+  }, 150);
+}
+
+// Cargar html2canvas dinámicamente
+if (typeof html2canvas === 'undefined') {
+  const script = document.createElement('script');
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+  document.head.appendChild(script);
+}
+
 /* ── FIT ALL ── */
 function collectB(layer, acc) {
   if (layer.getLatLng) { try { acc.push(layer.getLatLng().toBounds(2)); } catch(e){} return; }
@@ -298,12 +383,6 @@ function handleFile(file) {
   const ext = file.name.split('.').pop().toLowerCase();
   if (ext==='dwg') { showToast('DWG: Exporta como DXF R2013','err'); setStatus('DWG no soportado','err'); return; }
   
-  // Soporte para GeoTIFF
-  if (ext==='tif' || ext==='tiff') {
-    processGeoTIFF(file);
-    return;
-  }
-  
   setStatus('Leyendo: '+file.name,'warn');
   showLoader('Procesando: '+file.name,'Analizando…');
   const r=new FileReader();
@@ -316,110 +395,6 @@ function handleFile(file) {
   };
   r.onerror = ()=>{hideLoader();showToast('No se pudo leer el archivo','err')};
   r.readAsText(file,'utf-8');
-}
-
-/* ── GeoTIFF ── */
-async function processGeoTIFF(file) {
-  try {
-    showLoader('Cargando GeoTIFF...', 'Procesando imagen...');
-    updateLoader('Leyendo archivo...');
-    
-    // Cargar librería geotiff.js
-    const GeoTIFF = await loadGeoTIFFLib();
-    
-    // Leer el archivo como ArrayBuffer
-    const arrayBuffer = await file.arrayBuffer();
-    
-    // Parsear el GeoTIFF
-    updateLoader('Analizando metadatos...');
-    const tiff = await GeoTIFF.fromArrayBuffer(arrayBuffer);
-    const image = await tiff.getImage();
-    const fileDirectory = image.getFileDirectory();
-    
-    // Obtener información de la imagen
-    const width = fileDirectory.ImageWidth;
-    const height = fileDirectory.ImageLength;
-    
-    // Obtener transformación geográfica (GeoKeyDirectoryTag o ModelTransformation)
-    let bbox = null;
-    try {
-      const geoKeys = image.getGeoKeys();
-      if (geoKeys && geoKeys.GeoGTParams) {
-        // Usar parámetros de transformación si están disponibles
-        const tiePoints = image.getTiePoints();
-        const resolution = image.getResolution();
-        
-        if (tiePoints && tiePoints.length > 0) {
-          // Calcular bbox a partir de tie points
-          const [i, j, k, x, y] = tiePoints[0];
-          const [resX, resY] = resolution;
-          
-          const minX = x - i * resX;
-          const maxY = y - j * resY;
-          const maxX = minX + width * resX;
-          const minY = maxY - height * resY;
-          
-          bbox = [minX, minY, maxX, maxY];
-        }
-      }
-    } catch (e) {
-      console.warn('No se pudo leer la información geográfica:', e);
-    }
-    
-    if (!bbox) {
-      hideLoader();
-      showToast('GeoTIFF sin información geográfica válida', 'err');
-      return;
-    }
-    
-    updateLoader('Creando capa de imagen...');
-    
-    // Crear URL para el blob
-    const url = URL.createObjectURL(new Blob([arrayBuffer], { type: 'image/tiff' }));
-    
-    // Para mostrar GeoTIFF en Leaflet, usamos ImageOverlay con los límites
-    // Nota: Los navegadores no renderizan TIFF directamente, necesitamos convertirlo
-    // Usaremos una aproximación creando un canvas o usando un servicio externo
-    
-    // Opción simplificada: Mostrar advertencia y usar solo los límites
-    const bounds = [[bbox[1], bbox[0]], [bbox[3], bbox[2]]];
-    
-    // Crear un rectángulo para mostrar los límites del GeoTIFF
-    const rectangle = L.rectangle(bounds, {
-      color: '#ff6b6b',
-      weight: 2,
-      dashArray: '10, 10',
-      fillOpacity: 0.1
-    });
-    
-    const group = L.featureGroup([rectangle]);
-    
-    // Agregar popup con información
-    rectangle.bindPopup(`
-      <b>${file.name}</b><br/>
-      Dimensiones: ${width} x ${height} píxeles<br/>
-      Límites:<br/>
-      Min X: ${bbox[0].toFixed(4)}<br/>
-      Min Y: ${bbox[1].toFixed(4)}<br/>
-      Max X: ${bbox[2].toFixed(4)}<br/>
-      Max Y: ${bbox[3].toFixed(4)}<br/>
-      <small>Nota: Visualización completa requiere servidor de tiles</small>
-    `);
-    
-    const name = file.name.replace(/\.[^.]+$/, '');
-    registerLayer(name, group, 1, { type: 'GeoTIFF_BBOX', file: file });
-    
-    hideLoader();
-    setTimeout(fitAll, 200);
-    showToast(`✓ GeoTIFF cargado: ${width}x${height}`, 'ok');
-    setStatus(`"${name}" — GeoTIFF`, 'ok');
-    
-  } catch (err) {
-    hideLoader();
-    showToast('Error GeoTIFF: ' + err.message, 'err');
-    setStatus('Error: ' + err.message, 'err');
-    console.error(err);
-  }
 }
 
 /* ── GEOJSON ── */

@@ -1,3 +1,4 @@
+```
 # Logs and temp files
 *.log
 *.tmp
@@ -24,6 +25,10 @@ build/
 target/
 .gradle/
 
+# OS generated files
+.DS_Store
+Thumbs.db
+
 # Compiled files
 *.pyc
 *.class
@@ -35,11 +40,7 @@ target/
 *.obj
 *.out
 
-# System files
-.DS_Store
-Thumbs.db
-
-# Coverage
+# Coverage reports
 coverage/
 htmlcov/
 .coverage
@@ -67,3 +68,4 @@ htmlcov/
 *.tar.bz2
 *.tar.xz
 *.tar.zst
+```
